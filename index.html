@@ -1,278 +1,507 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Hanau City Org Dashboard</title>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hanau City Network - Obsidian Style</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-    /* Reset and theme colors */
-    html, body { height: 100%; margin: 0; padding: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      min-height: 100vh;
-      background: #111317;
-      font-family: 'Inter', Segoe UI, Arial, sans-serif;
-      color: #fafafa;
-      letter-spacing: 0.01em;
-    }
-    .dashboard {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 32px 8px;
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 2.5em;
-    }
-    .header h1 {
-      font-size: 2.5em;
-      letter-spacing: -0.03em;
-      font-weight: 800;
-      color: #8BCDFF;
-      text-shadow: 0 8px 32px #000d,0 1px 1px #222b;
-    }
-    .header p {
-      font-size: 1.15em;
-      color: #b9bbbe;
-      opacity: 0.9;
-    }
-    .breadcrumb {
-      display: flex; flex-wrap: wrap; min-height: 35px;
-      gap: .5em; align-items: center; margin-bottom: 18px;
-    }
-    .breadcrumb-item {
-      cursor: pointer;
-      color: #8bcdff; font-weight: 500;
-      padding: 2px 10px;
-      border-radius: 8px;
-      background: #16181d;
-      transition: background .23s, color .23s;
-      font-size: 1.08em;
-    }
-    .breadcrumb-item:hover, .breadcrumb-item.active {
-      background: #1d2634; color: #fff;
-    }
-    .breadcrumb-separator {
-      color: #555a;
-      user-select: none;
-    }
-    .network-container {
-      background: linear-gradient(135deg,#181e28 40%,#14151a 100%);
-      border-radius: 20px;
-      box-shadow: 0 10px 34px #060b 0.12;
-      padding: 2.5em 1.5em 2.5em 1.5em;
-      margin-bottom: 2em;
-      animation: fadeIn .6s;
-    }
-    @keyframes fadeIn { from { opacity: 0;transform: translateY(42px);} to{opacity:1;transform:translateY(0)} }
-    .current-node {
-      text-align: center;
-      margin-bottom: 2.2em;
-      animation: fadeIn .45s;
-    }
-    .current-node h2 {
-      font-size: 2em;
-      color: #fff;
-      font-weight: 700;
-      margin: .1em 0 .1em 0;
-    }
-    .current-node .node-type {
-      font-size: 1.1em;
-      color: #b9bbbe;
-      margin-bottom: .8em;
-      letter-spacing: 0.01em;
-      font-style: italic
-    }
-    .node-details {
-      margin: 0 auto 8px auto;
-      display: flex; flex-wrap: wrap; justify-content: center;
-      gap: 1.6em 2.3em;
-      color: #b9bbbe; font-size: 1.07em;
-    }
-    .detail-item strong { color: #8BCDFF; display:block; font-size:0.93em;}
-    .stats-bar { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; margin-bottom:1.6em;}
-    .stat-card { background: #151521; border-radius:9px; padding:23px 24px; text-align:center; min-width:130px; }
-    .stat-number { font-size:1.5em;color:#8bcdff; font-family:monospace; font-weight:bold;}
-    .stat-label {margin-top:4px;color:#c1c8dc;font-size:.96em;opacity:.76;}
-    .subordinates-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(325px, 1fr));
-      gap: 24px;
-      margin-top: 1em;
-    }
-    .node-card {
-      position: relative;
-      background: #16181d;
-      box-shadow: 0 2px 8px #10152460;
-      border: none;
-      border-radius: 13px;
-      padding: 30px 26px 17px 26px;
-      cursor: pointer;
-      transition: box-shadow .26s, background .18s, transform .12s;
+      margin: 0;
       overflow: hidden;
-      color: #fafafa;
-      animation: fadeIn .26s;
+      background: #0d0e12;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #e0e0e0;
     }
-    .node-card:before {
-      content: ''; display:block;
-      position:absolute;top:0;left:0;width:100%;height:7px;
-      background: linear-gradient(90deg,#8bcdff60,#07dfc3c0 60%,#8160ec60);
-      border-radius:0 0 8px 8px;opacity:.3;
-      transition:opacity .3s;
+    #graph-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
     }
-    .node-card.organization { border-left: 4px solid #00a1e6; }
-    .node-card.person { border-left: 4px solid #07dfc3; }
-    .node-card:hover { background:#1f2230; transform: translateY(-2px) scale(1.01); box-shadow:0 8px 28px #08145060;}
-    .node-card h3 { font-size: 1.21em; margin-bottom: 9px; color: #bbf2ff; font-weight: bold; }
-    .node-card .role { color: #86a1be; font-size: 1em; margin-bottom: 6px; font-style: italic;}
-    .node-card .type-badge {
-      display: inline-block;
-      padding: 6px 15px;
-      border-radius: 20px;
-      font-size: 0.98em;
+    svg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    svg:active {
+      cursor: grabbing;
+    }
+    .link {
+      stroke: #4a4e69;
+      stroke-opacity: 0.4;
+      stroke-width: 2px;
+      fill: none;
+    }
+    .link.active {
+      stroke: #8bcdff;
+      stroke-opacity: 0.8;
+      stroke-width: 3px;
+    }
+    .node circle {
+      stroke: #1a1d29;
+      stroke-width: 3px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .node.organization circle {
+      fill: #2a5f8f;
+    }
+    .node.person circle {
+      fill: #07dfc3;
+    }
+    .node:hover circle {
+      stroke: #8bcdff;
+      stroke-width: 5px;
+      filter: drop-shadow(0 0 20px #8bcdff80);
+    }
+    .node.selected circle {
+      stroke: #fff;
+      stroke-width: 5px;
+      filter: drop-shadow(0 0 30px #8bcdffcc);
+    }
+    .node text {
+      font-size: 12px;
+      fill: #e0e0e0;
+      text-anchor: middle;
+      pointer-events: none;
+      user-select: none;
+      text-shadow: 0 0 8px #000, 0 0 8px #000;
       font-weight: 600;
-      background: #262c38;
-      color: #83faff;
-      margin-bottom: 10px;
     }
-    .node-card.organization .type-badge { background: #1e3246; color:#8bcdff; }
-    .node-card.person .type-badge { background: #15332f; color: #07dfc3; }
-    .sentiment-bar { height: 8px; background: #333940; border-radius: 4px; margin:10px 0 3px 0; }
-    .sentiment-fill { height:100%;transition:width .23s;}
-    .contact-info { font-size: 0.92em; color: #aaa; margin-top: 15px;}
-    .contact-info div { margin: 2.7px 0;}
-    .empty-state {
-      text-align: center; color: #666;
-      grid-column: 1/-1;
-      padding: 50px 8px;
-      animation: fadeIn .3s;
+    .info-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 350px;
+      max-height: 80vh;
+      background: rgba(20, 22, 30, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid #2a2e45;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+      transform: translateX(400px);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .empty-state svg { width: 60px; height:60px; opacity:.16; margin-bottom:17px}
-    @media (max-width:680px){
-      .network-container,.dashboard{padding:10px;}
-      .header h1{font-size:1.3em;}
-      .subordinates-grid{grid-template-columns:1fr;}
-      .node-card{padding:12px;}
+    .info-panel.visible {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    .info-panel h2 {
+      font-size: 1.5em;
+      margin-bottom: 8px;
+      color: #8bcdff;
+      font-weight: 700;
+    }
+    .info-panel .type {
+      color: #b3b8d1;
+      font-size: 0.95em;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    .info-section {
+      margin-bottom: 20px;
+    }
+    .info-section h3 {
+      font-size: 0.85em;
+      color: #8bcdff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .info-item {
+      display: flex;
+      gap: 10px;
+      margin: 6px 0;
+      font-size: 0.9em;
+      color: #b3b8d1;
+    }
+    .info-item strong {
+      color: #e0e0e0;
+      min-width: 70px;
+    }
+    .sentiment-bar {
+      height: 10px;
+      background: #1a1d29;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .sentiment-fill {
+      height: 100%;
+      transition: width 0.5s;
+      border-radius: 5px;
+    }
+    .subordinates-list {
+      list-style: none;
+      padding: 0;
+    }
+    .subordinates-list li {
+      padding: 10px;
+      margin: 6px 0;
+      background: rgba(43, 48, 70, 0.5);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+    .subordinates-list li:hover {
+      background: rgba(43, 48, 70, 0.8);
+      border-left-color: #8bcdff;
+      transform: translateX(4px);
+    }
+    .subordinates-list li.org {
+      border-left-color: #2a5f8f;
+    }
+    .subordinates-list li.person {
+      border-left-color: #07dfc3;
+    }
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: #8bcdff;
+      font-size: 24px;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .close-btn:hover {
+      background: rgba(139, 205, 255, 0.1);
+      transform: rotate(90deg);
+    }
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    .control-btn {
+      background: rgba(20, 22, 30, 0.9);
+      border: 1px solid #2a2e45;
+      color: #8bcdff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+    }
+    .control-btn:hover {
+      background: rgba(139, 205, 255, 0.15);
+      border-color: #8bcdff;
+    }
+    .legend {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(20, 22, 30, 0.9);
+      border: 1px solid #2a2e45;
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: blur(10px);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+    .legend-circle {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #1a1d29;
+    }
+    .legend-circle.org {
+      background: #2a5f8f;
+    }
+    .legend-circle.person {
+      background: #07dfc3;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(26, 29, 41, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #4a4e69;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #8bcdff;
     }
   </style>
 </head>
 <body>
-  <div class="dashboard">
-    <div class="header">
-      <h1>🏛️ Hanau City Org Dashboard</h1>
-      <p>Ultra-smooth, drill-down interactive org chart</p>
+  <div id="graph-container">
+    <svg id="graph"></svg>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-circle org"></div>
+        <span>Organization</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-circle person"></div>
+        <span>Person</span>
+      </div>
     </div>
-    <div id="breadcrumb" class="breadcrumb"></div>
-    <div class="network-container">
-      <div id="current-node" class="current-node"></div>
-      <div id="stats" class="stats-bar"></div>
-      <div id="subordinates" class="subordinates-grid"></div>
+    <div class="controls">
+      <button class="control-btn" onclick="resetZoom()">🔄 Reset View</button>
+      <button class="control-btn" onclick="resetGraph()">🏠 Home</button>
+    </div>
+    <div id="info-panel" class="info-panel">
+      <button class="close-btn" onclick="closePanel()">×</button>
+      <div id="info-content"></div>
     </div>
   </div>
-<script>
-const data = {
-  nodes: {
-    stadt_hanau: { id:'stadt_hanau', name:'Stadt Hanau', type:'City Administration', category:'organization', subordinates:['magistrat','holding','immobilien'] },
-    magistrat: { id:'magistrat', name:'Magistrat',type:'City Govt',category:'organization',parent:'stadt_hanau',subordinates:['kaminsky','bieri','hemsley'] },
-    holding: { id:'holding', name:'BeteiligungsHolding Hanau GmbH',type:'Holding',category:'organization',parent:'stadt_hanau', subordinates:['menzen','stadtwerke','baeder','hafen','marketing','wirtschaft','bhg_it'] },
-    immobilien: { id:'immobilien',name:'Hanau Immobilien- und Baumanagement',type:'Property Mgmt',category:'organization',parent:'stadt_hanau',phone:'06181/295-397',email:'hanau-ibm@hanau.de',subordinates:[] },
-    stadtwerke: { id:'stadtwerke', name:'Stadtwerke Hanau GmbH',type:'Energy & Utilities',category:'organization',parent:'holding',subordinates:['butz','netz'] },
-    netz: { id:'netz', name:'Hanau Netz GmbH', type:'Grid Operator',category:'organization',parent:'stadtwerke',phone:'06181/365-13',email:'info@hanau-netz.de',subordinates:['szabo'] },
-    baeder: { id:'baeder', name:'Hanau Bäder GmbH',type:'Public Swimming Pools',category:'organization',parent:'holding',phone:'06181/365-6900',email:'verwaltung@hanaubaeder.de', subordinates:[] },
-    hafen: { id:'hafen', name:'Hanau Hafen GmbH', type:'Port Authority',category:'organization',parent:'holding',email:'info@hanau-hafen.de', subordinates:['menzen'] },
-    marketing: { id:'marketing', name:'Hanau Marketing GmbH',type:'City Marketing',category:'organization',parent:'holding',phone:'06181/2950-2188', subordinates:['bieberle','freimuth'] },
-    wirtschaft: { id:'wirtschaft',name:'Hanau Wirtschaftsförderung GmbH',type:'Economic Dev.',category:'organization',parent:'holding',phone:'06181/2950-2194', email:'Wirtschaftsfoerderung@hanau.de',subordinates:[] },
-    bhg_it: { id:'bhg_it', name:'bhg.it',type:'IT Services',category:'organization',parent:'holding',subordinates:[] },
-    kaminsky: { id:'kaminsky', name:'Claus Kaminsky', role:'Oberbürgermeister',category:'person',parent:'magistrat',email:'ob.clauskaminsky@hanau.de', phone:'06181/295-250', sentiment:75, subordinates:[] },
-    bieri: { id:'bieri', name:'Dr. Maximilian Bieri', role:'Bürgermeister',category:'person',parent:'magistrat',email:'Buergermeister.bieri@hanau.de', phone:'06181/2950-3000', sentiment:70, subordinates:[] },
-    hemsley: { id:'hemsley', name:'Isabelle Hemsley', role:'Stadträtin',category:'person',parent:'magistrat', sentiment:65, subordinates:[] },
-    menzen: { id:'menzen', name:'Markus Menzen', role:'Geschäftsführer',category:'person',parent:'holding',sentiment:80,subordinates:[] },
-    butz: { id:'butz', name:'Martina Butz', role:'Geschäftsführerin',category:'person',parent:'stadtwerke',sentiment:85,subordinates:[] },
-    szabo: { id:'szabo',name:'Adrian Szabo',role:'Geschäftsführer',category:'person',parent:'netz',email:'info@hanau-netz.de',phone:'06181/365-13',sentiment:72,subordinates:[] },
-    bieberle: { id:'bieberle', name:'Martin Bieberle',role:'Geschäftsführer',category:'person',parent:'marketing',sentiment:68,subordinates:[] },
-    freimuth: { id:'freimuth', name:'Daniel Freimuth',role:'Geschäftsführer',category:'person',parent:'marketing',sentiment:70,subordinates:[] }
-  },
-  currentPath: ['stadt_hanau']
-};
 
-function getSentimentColor(sentiment){
-  if(!sentiment) return '#888';
-  if(sentiment<=50){
-    const r=Math.floor(128+(sentiment/50)*127),g=Math.floor((sentiment/50)*255);
-    return `rgb(${r},${g},0)`;
-  }else{
-    const r=Math.floor(255-((sentiment-50)/50)*255);
-    return `rgb(${r},255,0)`;
-  }
-}
-function renderCurrentNode(nodeId){
-  const node=data.nodes[nodeId],el=document.getElementById('current-node');
-  let details='<div class="node-details">';
-  if(node.type) details+=`<div class="detail-item"><strong>Type</strong>${node.type}</div>`;
-  if(node.role) details+=`<div class="detail-item"><strong>Role</strong>${node.role}</div>`;
-  if(node.email) details+=`<div class="detail-item"><strong>Email</strong>${node.email}</div>`;
-  if(node.phone) details+=`<div class="detail-item"><strong>Phone</strong>${node.phone}</div>`;
-  if(node.sentiment) details+=`<div class="detail-item"><strong>Sentiment</strong>${node.sentiment}/100</div>`;
-  details+='</div>';
-  el.innerHTML=`<h2>${node.name}</h2>${
-    node.type?`<div class="node-type">${node.type}</div>`:''}${
-    node.role?`<div class="node-type">${node.role}</div>`:''}${details}`;
-}
-function renderStats(nodeId){
-  const node=data.nodes[nodeId],el=document.getElementById('stats'),total=node.subordinates.length,
-    orgs=node.subordinates.filter(id=>data.nodes[id].category==='organization').length,
-    people=node.subordinates.filter(id=>data.nodes[id].category==='person').length;
-  el.innerHTML=`
-    <div class="stat-card"><div class="stat-number">${total}</div><div class="stat-label">Total Subordinates</div></div>
-    <div class="stat-card"><div class="stat-number">${orgs}</div><div class="stat-label">Organizations</div></div>
-    <div class="stat-card"><div class="stat-number">${people}</div><div class="stat-label">People</div></div>`;
-}
-function renderSubordinates(nodeId){
-  const node=data.nodes[nodeId],el=document.getElementById('subordinates');
-  if(node.subordinates.length===0){
-    el.innerHTML=`<div class="empty-state">
-      <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
-      <h3>No Subordinates</h3><p>This is a leaf node.</p>
-    </div>`; return;
-  }
-  el.innerHTML=node.subordinates.map(subId=>{
-    const sub=data.nodes[subId],isPerson=sub.category==='person';
-    let h=`<div class="node-card ${sub.category}" onclick="navigateTo('${subId}')">
-      <div class="type-badge">${isPerson?'👤 Person':'🏢 Organization'}</div>
-      <h3>${sub.name}</h3>${sub.role?`<div class="role">${sub.role}</div>`:''}${sub.type?`<div class="role">${sub.type}</div>`:''}`;
-    if(isPerson&&sub.sentiment){
-      h+=`<div class="sentiment-bar"><div class="sentiment-fill" style="width:${sub.sentiment}%;background:${getSentimentColor(sub.sentiment)}"></div></div>
-      <div style="font-size:0.89em;color:#99e">Sentiment: ${sub.sentiment}/100</div>`;
+  <script>
+    const graphData = {
+      nodes: {
+        stadt_hanau: { id:'stadt_hanau', name:'Stadt Hanau', type:'City Admin', category:'organization', subordinates:['magistrat','holding','immobilien'] },
+        magistrat: { id:'magistrat', name:'Magistrat',type:'City Govt',category:'organization',parent:'stadt_hanau',subordinates:['kaminsky','bieri','hemsley'] },
+        holding: { id:'holding', name:'BeteiligungsHolding',type:'Holding',category:'organization',parent:'stadt_hanau', subordinates:['menzen','stadtwerke','baeder','hafen','marketing','wirtschaft','bhg_it'] },
+        immobilien: { id:'immobilien',name:'Hanau Immobilien',type:'Property',category:'organization',parent:'stadt_hanau',phone:'06181/295-397',email:'hanau-ibm@hanau.de',subordinates:[] },
+        stadtwerke: { id:'stadtwerke', name:'Stadtwerke Hanau',type:'Energy',category:'organization',parent:'holding',subordinates:['butz','netz'] },
+        netz: { id:'netz', name:'Hanau Netz', type:'Grid',category:'organization',parent:'stadtwerke',phone:'06181/365-13',email:'info@hanau-netz.de',subordinates:['szabo'] },
+        baeder: { id:'baeder', name:'Hanau Bäder',type:'Swimming Pools',category:'organization',parent:'holding',phone:'06181/365-6900',email:'verwaltung@hanaubaeder.de', subordinates:[] },
+        hafen: { id:'hafen', name:'Hanau Hafen', type:'Port',category:'organization',parent:'holding',email:'info@hanau-hafen.de', subordinates:['menzen'] },
+        marketing: { id:'marketing', name:'Hanau Marketing',type:'Marketing',category:'organization',parent:'holding',phone:'06181/2950-2188', subordinates:['bieberle','freimuth'] },
+        wirtschaft: { id:'wirtschaft',name:'Hanau Wirtschaft',type:'Economic',category:'organization',parent:'holding',phone:'06181/2950-2194', email:'Wirtschaftsfoerderung@hanau.de',subordinates:[] },
+        bhg_it: { id:'bhg_it', name:'bhg.it',type:'IT',category:'organization',parent:'holding',subordinates:[] },
+        kaminsky: { id:'kaminsky', name:'C. Kaminsky', role:'Oberbürgermeister',category:'person',parent:'magistrat',email:'ob.clauskaminsky@hanau.de', phone:'06181/295-250', sentiment:75, subordinates:[] },
+        bieri: { id:'bieri', name:'M. Bieri', role:'Bürgermeister',category:'person',parent:'magistrat',email:'Buergermeister.bieri@hanau.de', phone:'06181/2950-3000', sentiment:70, subordinates:[] },
+        hemsley: { id:'hemsley', name:'I. Hemsley', role:'Stadträtin',category:'person',parent:'magistrat', sentiment:65, subordinates:[] },
+        menzen: { id:'menzen', name:'M. Menzen', role:'CEO',category:'person',parent:'holding',sentiment:80,subordinates:[] },
+        butz: { id:'butz', name:'M. Butz', role:'CEO',category:'person',parent:'stadtwerke',sentiment:85,subordinates:[] },
+        szabo: { id:'szabo',name:'A. Szabo',role:'CEO',category:'person',parent:'netz',email:'info@hanau-netz.de',phone:'06181/365-13',sentiment:72,subordinates:[] },
+        bieberle: { id:'bieberle', name:'M. Bieberle',role:'CEO',category:'person',parent:'marketing',sentiment:68,subordinates:[] },
+        freimuth: { id:'freimuth', name:'D. Freimuth',role:'CEO',category:'person',parent:'marketing',sentiment:70,subordinates:[] }
+      }
+    };
+
+    let currentView = 'stadt_hanau';
+    let simulation;
+
+    function getSentimentColor(sentiment) {
+      if (!sentiment) return '#888';
+      if (sentiment <= 50) {
+        const r = Math.floor(128 + (sentiment / 50) * 127);
+        const g = Math.floor((sentiment / 50) * 255);
+        return `rgb(${r}, ${g}, 0)`;
+      } else {
+        const r = Math.floor(255 - ((sentiment - 50) / 50) * 255);
+        return `rgb(${r}, 255, 0)`;
+      }
     }
-    if(sub.email||sub.phone){
-      h+='<div class="contact-info">';
-      if(sub.email) h+=`<div>📧 ${sub.email}</div>`;
-      if(sub.phone) h+=`<div>📞 ${sub.phone}</div>`;
-      h+='</div>';
+
+    function getVisibleNodes(rootId) {
+      const root = graphData.nodes[rootId];
+      const nodes = [root];
+      const links = [];
+
+      root.subordinates.forEach(subId => {
+        const sub = graphData.nodes[subId];
+        nodes.push(sub);
+        links.push({ source: rootId, target: subId });
+
+        // Add second level for richer graph
+        if (sub.subordinates && sub.subordinates.length > 0) {
+          sub.subordinates.forEach(subSubId => {
+            const subSub = graphData.nodes[subSubId];
+            if (!nodes.find(n => n.id === subSubId)) {
+              nodes.push(subSub);
+              links.push({ source: subId, target: subSubId });
+            }
+          });
+        }
+      });
+
+      return { nodes, links };
     }
-    if(sub.subordinates&&sub.subordinates.length>0){
-      h+=`<div style="margin-top:10px;font-size:.92em;color:#8bcdff;font-weight:600">→ ${sub.subordinates.length} subordinate${sub.subordinates.length>1?'s':''}</div>`;
+
+    function renderGraph(rootId) {
+      currentView = rootId;
+      const { nodes, links } = getVisibleNodes(rootId);
+
+      const svg = d3.select('#graph');
+      svg.selectAll('*').remove();
+
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      const g = svg.append('g');
+
+      // Zoom behavior
+      const zoom = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .on('zoom', (event) => {
+          g.attr('transform', event.transform);
+        });
+
+      svg.call(zoom);
+
+      // Force simulation
+      simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(150))
+        .force('charge', d3.forceManyBody().strength(-800))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(60));
+
+      // Links
+      const link = g.append('g')
+        .selectAll('path')
+        .data(links)
+        .enter()
+        .append('path')
+        .attr('class', 'link');
+
+      // Nodes
+      const node = g.append('g')
+        .selectAll('g')
+        .data(nodes)
+        .enter()
+        .append('g')
+        .attr('class', d => `node ${d.category}`)
+        .call(d3.drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended))
+        .on('click', (event, d) => {
+          event.stopPropagation();
+          selectNode(d);
+        });
+
+      node.append('circle')
+        .attr('r', d => d.category === 'organization' ? 30 : 20);
+
+      node.append('text')
+        .attr('dy', 45)
+        .text(d => d.name);
+
+      simulation.on('tick', () => {
+        link.attr('d', d => {
+          const dx = d.target.x - d.source.x;
+          const dy = d.target.y - d.source.y;
+          return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+        });
+
+        node.attr('transform', d => `translate(${d.x},${d.y})`);
+      });
+
+      function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+
+      function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+      }
+
+      function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
     }
-    h+='</div>'; return h;
-  }).join('');
-}
-function renderBreadcrumb(){
-  const el=document.getElementById('breadcrumb');
-  el.innerHTML=data.currentPath.map((nodeId,i)=>{
-    const node=data.nodes[nodeId],last=i===data.currentPath.length-1;
-    return `<span class="breadcrumb-item${last?' active':''}" onclick="navigateToIndex(${i})">${node.name}</span>${!last?'<span class="breadcrumb-separator">›</span>':''}`;
-  }).join('');
-}
-function navigateTo(nodeId){
-  const idx=data.currentPath.indexOf(nodeId);
-  if(idx!==-1)data.currentPath=data.currentPath.slice(0,idx+1);
-  else data.currentPath.push(nodeId);
-  render();
-}
-function navigateToIndex(i){data.currentPath=data.currentPath.slice(0,i+1);render();}
-function render(){const id=data.currentPath[data.currentPath.length-1];
-  renderBreadcrumb(); renderCurrentNode(id); renderStats(id); renderSubordinates(id);
-}
-render();
-</script>
+
+    function selectNode(node) {
+      // Update visual selection
+      d3.selectAll('.node').classed('selected', false);
+      d3.selectAll('.link').classed('active', false);
+
+      d3.selectAll('.node').filter(d => d.id === node.id).classed('selected', true);
+
+      // Show info panel
+      showInfoPanel(node);
+    }
+
+    function showInfoPanel(node) {
+      const panel = document.getElementById('info-panel');
+      const content = document.getElementById('info-content');
+
+      let html = `<h2>${node.name}</h2>`;
+      html += `<div class="type">${node.type || node.role || ''}</div>`;
+
+      if (node.email || node.phone) {
+        html += '<div class="info-section"><h3>Contact</h3>';
+        if (node.email) html += `<div class="info-item"><strong>Email:</strong> ${node.email}</div>`;
+        if (node.phone) html += `<div class="info-item"><strong>Phone:</strong> ${node.phone}</div>`;
+        html += '</div>';
+      }
+
+      if (node.sentiment) {
+        html += '<div class="info-section"><h3>Sentiment Score</h3>';
+        html += `<div class="info-item"><strong>Score:</strong> ${node.sentiment}/100</div>`;
+        html += `<div class="sentiment-bar"><div class="sentiment-fill" style="width: ${node.sentiment}%; background: ${getSentimentColor(node.sentiment)}"></div></div>`;
+        html += '</div>';
+      }
+
+      if (node.subordinates && node.subordinates.length > 0) {
+        html += '<div class="info-section"><h3>Subordinates</h3>';
+        html += '<ul class="subordinates-list">';
+        node.subordinates.forEach(subId => {
+          const sub = graphData.nodes[subId];
+          html += `<li class="${sub.category}" onclick="drillDown('${subId}')">${sub.name}</li>`;
+        });
+        html += '</ul></div>';
+      }
+
+      content.innerHTML = html;
+      panel.classList.add('visible');
+    }
+
+    function closePanel() {
+      document.getElementById('info-panel').classList.remove('visible');
+      d3.selectAll('.node').classed('selected', false);
+    }
+
+    function drillDown(nodeId) {
+      closePanel();
+      renderGraph(nodeId);
+    }
+
+    function resetZoom() {
+      d3.select('#graph').transition().duration(750).call(
+        d3.zoom().transform,
+        d3.zoomIdentity
+      );
+    }
+
+    function resetGraph() {
+      closePanel();
+      renderGraph('stadt_hanau');
+    }
+
+    // Close panel when clicking outside
+    document.getElementById('graph').addEventListener('click', closePanel);
+
+    // Initial render
+    renderGraph('stadt_hanau');
+
+    // Responsive
+    window.addEventListener('resize', () => {
+      renderGraph(currentView);
+    });
+  </script>
 </body>
 </html>
